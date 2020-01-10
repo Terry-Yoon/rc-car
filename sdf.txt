@@ -1,0 +1,88 @@
+#!/usr/bin/env python
+
+import numpy as np
+import sys, math, random, copy
+import rospy, copy, time
+from sensor_msgs.msg import LaserScan
+from racecar_ws.msg import drive_msg
+from sensor_msgs.msg import Joy
+from sensor_msgs.msg import Image
+from std_msgs.msg import Float32MultiArray
+
+AUTONOMOUS_MODE=False
+count = 0
+
+
+P1 = 0
+I1 = 0
+D1 = 0
+
+P2 = 0
+I2 = 0
+D2 = 0
+PID_input1 = 0
+PID_input2 = 0
+
+kp = 2.7
+ki = 8
+kd = 0.3
+dTime = 0.1
+
+print("Complete to open Drive Node")
+
+class Drive:
+	def __init__(self):
+		rospy.init_node("potentialField")
+		self.data = None
+		self.cmd = drive_msg()
+                self.camera_sub = rospy.Subscriber("/camera", Image, self.camera_callback)
+		self.ML_sub = rospy.Subscriber("/teachable_machine", Float32MultiArray, self.machine_learning_callback)
+		self.laser_sub = rospy.Subscriber("/scan", LaserScan, self.scan_callback) 
+		self.drive_pub = rospy.Publisher("/drive", drive_msg, queue_size=1)
+		self.cmd.velocity = 100
+		self.cmd.drive_angle = 0
+
+		self.cartPoints = [None for x in range(500)]
+		self.finalVector = [100, 0]
+		self.max= 255
+        self.a = 0
+        self.b = 0
+        self.dd1 = 0.3
+        self.dd2 = 0.5
+        self.err1 = 0
+        self.ca = 20
+
+	
+	def scan_callback(self, data):
+		'''Checks LIDAR data'''
+		self.data = data.ranges
+        self.a = round(self.data[375], 1)
+        self.b = round(self.data[425], 1)
+		self.drive_callback()
+		
+        def camera_callback(self, msg):
+		'''camera_callback'''
+
+	def machine_learning_callback(self, msg):
+		'''machine_learning_callback'''
+
+	def drive_callback(self):
+        global P1, I1, D1, kp, ki, kd, dTime, PID_input1, PID_input2
+        if self.dd1-self.a > 0 and self.dd2 - self.b > 0:
+            self.cmd.drive_angle = self.ca
+        elif self.dd1 - self.a > 0 and self.dd2 - self.b<0:
+            self.cmd.drive_angle = -self.ca
+        elif self.dd1 - self.a < 0 and self.dd2 - self.b>0:
+            self.cmd.drive_angle = self.ca
+        else:
+            self.cmd.drive_angle = -self.ca
+        
+        self.drive_pub.publish(self.cmd)
+
+
+if __name__ == "__main__":
+	try:
+		node = Drive()
+		rospy.spin()		
+	except rospy.ROSInterruptException:
+		exit()
